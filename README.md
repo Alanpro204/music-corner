@@ -19,6 +19,20 @@ El MVP abre una tarjeta musical al mantener el cursor **200 ms en la esquina sup
 
 Mientras está activa, la extensión sustituye la esquina de Actividades del monitor principal. Al desactivarla, reconstruye las esquinas según los ajustes actuales de GNOME, sin escribir en ellos. Actividades sigue disponible desde su botón y la tecla Super.
 
+## Capturas de pantalla
+
+Music Corner en la esquina superior izquierda, junto al reproductor del escritorio:
+
+![Vista del escritorio con Music Corner abierto en la esquina superior izquierda](docs/screenshots/desktop-overview.webp)
+
+| Letras sincronizadas · tema azul                                                                                              | Letras sincronizadas · tema amarillo                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| <img src="docs/screenshots/lyrics-midnight.webp" alt="Tarjeta musical con letras sincronizadas y colores azules" width="280"> | <img src="docs/screenshots/lyrics-yellow.webp" alt="Tarjeta musical con letras sincronizadas y colores amarillos" width="280">             |
+| **Letras sincronizadas · tema oscuro**                                                                                        | **Reproducción desde la esquina**                                                                                                          |
+| <img src="docs/screenshots/lyrics-ocean.webp" alt="Tarjeta musical con letras sincronizadas y colores oscuros" width="280">   | <img src="docs/screenshots/corner-playback.webp" alt="Cursor sobre el botón de reproducción en la esquina superior izquierda" width="280"> |
+
+Las capturas corresponden a una versión anterior al cambio de nombre y todavía muestran «Music Companion». Las cinco imágenes están en formato WebP sin pérdida.
+
 ## Empezar
 
 En la carpeta del proyecto:
