@@ -44,7 +44,7 @@ def doctor():
         version = subprocess.check_output(["gnome-shell", "--version"], text=True).strip()
         print(version)
         if version.split()[-1].split('.')[0] not in META['shell-version']:
-            missing.append("GNOME Shell 50")
+            missing.append("GNOME Shell " + ", ".join(META["shell-version"]))
     print(f"Kit visual: {devkit_path() or 'ejecuta npm run setup:devkit (Ubuntu)'}")
     if not devkit_path():
         missing.append("mutter-devkit")
@@ -55,7 +55,7 @@ def doctor():
 
 
 def check():
-    assert META["shell-version"] == ["50"], "Revisar las versiones de GNOME soportadas"
+    assert META["shell-version"] == ["45", "46", "47", "48", "49", "50"], "Revisar las versiones de GNOME soportadas"
     assert "@" in UUID and "/" not in UUID
     for directory in ["src", "tools", "tests"]:
         for source in (ROOT / directory).rglob("*.js"):

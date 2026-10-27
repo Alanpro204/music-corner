@@ -38,7 +38,10 @@ export class Lyrics {
             style_class: 'mc-lyrics-content',
             x_expand: true,
         });
-        this.scroll.set_child(this._content);
+        // GNOME 45 uses the original ScrollView container API.
+        if (typeof this.scroll.set_child === 'function')
+            this.scroll.set_child(this._content);
+        else this.scroll.add_actor(this._content);
         this.actor.add_child(this.scroll);
         this._resume = new St.Button({
             label: 'Volver a la frase actual',
@@ -53,7 +56,10 @@ export class Lyrics {
             this.scroll.grab_key_focus();
         });
         this.actor.add_child(this._resume);
-        this._adjustment = this.scroll.get_vadjustment();
+        this._adjustment =
+            typeof this.scroll.get_vadjustment === 'function'
+                ? this.scroll.get_vadjustment()
+                : this.scroll.get_vscroll_bar().get_adjustment();
         this._adjustment.connect('notify::value', () => {
             if (!this._animating) this._updateFollowing();
         });

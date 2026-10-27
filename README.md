@@ -1,6 +1,8 @@
 # Music Corner
 
-Extensión para **GNOME Shell 50 / Wayland**, desarrollada con JavaScript (GJS), St y D-Bus/MPRIS.
+Código fuente y reporte de problemas: [Alanpro204/music-corner](https://github.com/Alanpro204/music-corner).
+
+Extensión para **GNOME Shell 45–50**, desarrollada con JavaScript (GJS), St y D-Bus/MPRIS.
 
 El MVP abre una tarjeta musical al mantener el cursor **200 ms en la esquina superior izquierda del monitor principal**. La tarjeta queda pegada a los bordes superior e izquierdo, con reproducir/pausar justo bajo el cursor: **llegar a la esquina → clic → pausar o continuar**, sin moverlo otra vez. Si haces clic antes de los 200 ms, abre y ejecuta la acción inmediatamente, una sola vez. También puedes abrirla con **Ctrl+Alt+M** o desde el icono musical de la barra, que puede ocultarse en Preferencias.
 
@@ -52,7 +54,7 @@ sudo apt install mutter-dev-bin
 
 Con la copia local puede aparecer en el registro un aviso de que falta `/usr/libexec/mutter-devkit`: Mutter intenta esa ruta primero y el lanzador del proyecto abre después la copia local. Ese aviso es esperado; el lanzador comprueba además que la extensión haya quedado activada.
 
-En otras distribuciones instala el paquete que proporcione `mutter-devkit`. La extensión está dirigida a GNOME 50; no declara compatibilidad con versiones aún no comprobadas.
+En otras distribuciones instala el paquete que proporcione `mutter-devkit`. La extensión declara compatibilidad con GNOME Shell 45, 46, 47, 48, 49 y 50. La compatibilidad con 45–49 se asume por decisión del autor; las pruebas de ejecución se han realizado en GNOME 50 sobre Wayland. Las herramientas de desarrollo descritas aquí requieren GNOME 50. GNOME 44 y anteriores necesitan una implementación separada por el cambio a módulos ESM en GNOME 45.
 
 ## Comandos
 
