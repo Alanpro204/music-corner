@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-2.0-or-later -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.music-companion" path="/org/gnome/shell/extensions/music-companion/">
+    <key name="show-panel-icon" type="b"><default>true</default><summary>Mostrar icono en la barra superior</summary></key>
+    <key name="theme-mode" type="s"><default>'custom'</default><summary>Tema visual: custom, cover o tema predefinido</summary></key>
+    <key name="background-color" type="s"><default>'#171c26'</default><summary>Fondo del menú (#RRGGBB)</summary></key>
+    <key name="text-color" type="s"><default>'#f3f5fa'</default><summary>Texto e iconos (#RRGGBB)</summary></key>
+    <key name="muted-color" type="s"><default>'#98a6bc'</default><summary>Texto secundario (#RRGGBB)</summary></key>
+    <key name="accent-color" type="s"><default>'#9be4c8'</default><summary>Botones de reproducción y acentos (#RRGGBB)</summary></key>
+    <key name="surface-color" type="s"><default>'#283140'</default><summary>Botones y superficies (#RRGGBB)</summary></key>
+    <key name="seek-seconds" type="u"><default>5</default><range min="1" max="300"/><summary>Segundos para adelantar o retroceder la canción</summary></key>
+    <key name="open-delay" type="u"><default>200</default><range min="50" max="2000"/><summary>Tiempo de permanencia en la esquina (ms)</summary></key>
+    <key name="close-delay" type="u"><default>350</default><range min="100" max="3000"/><summary>Espera antes de ocultar el menú (ms)</summary></key>
+    <key name="toggle-music-companion" type="as"><default>['&lt;Control&gt;&lt;Alt&gt;m']</default><summary>Atajo para abrir el menú</summary></key>
+  </schema>
+</schemalist>

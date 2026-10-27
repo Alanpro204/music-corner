@@ -1,0 +1,34 @@
+{
+  "name": "music-corner",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Entorno de desarrollo de una extensión musical para GNOME Shell 50",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "doctor": "python3 tools/dev.py doctor",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run lint && npm run format:check && python3 tools/dev.py check",
+    "build": "python3 tools/dev.py build",
+    "dev": "python3 tools/dev.py dev",
+    "test:shell": "python3 tools/dev.py smoke",
+    "test:mpris": "dbus-run-session -- gjs -m tests/mpris-smoke.js && dbus-run-session -- gjs -m tests/client-smoke.js",
+    "test": "npm run test:lyrics && npm run test:mpris && npm run test:shell",
+    "test:lyrics": "node tests/lyrics-test.js",
+    "mpris:list": "gjs -m tools/mpris-probe.js",
+    "mpris:mock": "gjs -m tools/run-mock.js",
+    "setup:devkit": "python3 tools/dev.py setup-devkit",
+    "install:local": "python3 tools/dev.py install",
+    "logs": "journalctl --user -f -o cat /usr/bin/gnome-shell"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "prettier": "^3.6.2"
+  },
+  "license": "GPL-2.0-or-later"
+}

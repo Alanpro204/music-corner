@@ -1,0 +1,8 @@
+{
+  "singleQuote": true,
+  "tabWidth": 4,
+  "trailingComma": "all",
+  "overrides": [
+    { "files": ["*.json", "*.md", "*.yml"], "options": { "tabWidth": 2 } }
+  ]
+}
