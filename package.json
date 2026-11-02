@@ -1,6 +1,6 @@
 {
   "name": "music-corner",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Entorno de desarrollo de una extensión musical para GNOME Shell 50",
   "type": "module",

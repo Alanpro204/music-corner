@@ -4,6 +4,8 @@ Código fuente y reporte de problemas: [Alanpro204/music-corner](https://github.
 
 Extensión para **GNOME Shell 45–50**, desarrollada con JavaScript (GJS), St y D-Bus/MPRIS.
 
+Versión **0.3.0**: [novedades y archivos de publicación](docs/release-notes-0.3.0.md).
+
 El MVP abre una tarjeta musical al mantener el cursor **200 ms en la esquina superior izquierda del monitor principal**. La tarjeta queda pegada a los bordes superior e izquierdo, con reproducir/pausar justo bajo el cursor: **llegar a la esquina → clic → pausar o continuar**, sin moverlo otra vez. Si haces clic antes de los 200 ms, abre y ejecuta la acción inmediatamente, una sola vez. También puedes abrirla con **Ctrl+Alt+M** o desde el icono musical de la barra, que puede ocultarse en Preferencias.
 
 - Título, artista, carátula y estado de reproducción. Al pulsar la carátula o el título se abre el reproductor actual si admite la acción MPRIS `Raise`.

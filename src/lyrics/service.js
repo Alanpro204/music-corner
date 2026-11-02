@@ -71,7 +71,7 @@ export class LyricsService {
         );
         message.request_headers.append(
             'User-Agent',
-            'MusicCorner/0.2 (GNOME Shell)',
+            'MusicCorner/0.3.0 (GNOME Shell)',
         );
         let stream;
         try {

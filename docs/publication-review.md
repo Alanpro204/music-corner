@@ -1,65 +1,60 @@
 # Revisión previa a publicación de Music Corner
 
-Fecha: 27 de octubre de 2026. Versión: 0.2.0. Destino declarado: GNOME Shell 45–50. Validación ejecutada: GNOME Shell 50.
+Fecha: 2 de noviembre de 2026. Versión: 0.3.0. Destino declarado: GNOME Shell 45–50. Validación ejecutada: GNOME Shell 50 sobre Wayland.
 
-## Fuentes consultadas
+## Resultado
 
-- [Formulario de subida](https://extensions.gnome.org/upload/): redirige al inicio de sesión. No se han podido inspeccionar los campos autenticados ni se ha enviado ningún archivo.
-- [Directrices de revisión](https://gjs.guide/extensions/review-guidelines/review-guidelines.html): referencia para ciclo de vida, importaciones, metadatos, esquemas, contenido del paquete y licencia. La aprobación corresponde al equipo de revisión de GNOME.
+Entrega preparada para subir a extensions.gnome.org o adjuntar a una publicación de GitHub. No se ha enviado ningún archivo ni creado una publicación o etiqueta remota. La aprobación de GNOME corresponde a su equipo de revisión.
 
-## Resultado de la inspección del proyecto
+Las [notas de la versión](release-notes-0.3.0.md) describen las novedades y los archivos que se deben adjuntar. `package.json`, `package-lock.json` y `metadata.json` identifican la versión 0.3.0. Se conserva el UUID `music-companion@alanpro.dev` y el esquema de ajustes.
 
-| Área                     | Resultado y evidencia                                                                                                                                     |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inicialización           | Los módulos contienen importaciones, funciones, clases y datos estáticos. Los objetos GObject se crean desde el ciclo de activación.                      |
-| Desactivación            | extension.js retira el atajo, desconecta ajustes y destruye sensor, tarjeta, cliente e indicador.                                                         |
-| Señales y temporizadores | Revisados hotCorner, playerCard, progress, lyrics y theme. Se retiran fuentes y señales externas; las señales de widgets propios terminan al destruirlos. |
-| D-Bus                    | Cliente asíncrono, solicitudes cancelables, retirada de suscripción y desconexión de proxies.                                                             |
-| Red                      | Soup asíncrono y cancelable para carátulas y letras; límites de tamaño y tiempo; abortado al destruir los servicios.                                      |
-| Separación de procesos   | Gtk, Gdk y Adw solo en prefs.js. prefs.js comparte palette.js, que no importa bibliotecas de Shell. GdkPixbuf se usa para imágenes en Shell.              |
-| Código distribuido       | JavaScript legible; sin minificación, ejecutables, scripts Python, dependencias npm, telemetría, acceso al portapapeles ni subprocessos.                  |
-| Metadatos                | Nombre Music Corner, UUID válido music-companion@alanpro.dev, GNOME 45–50, sin versión numérica impuesta ni modos de sesión adicionales.                  |
-| GSettings                | XML incluido, nombre/base de esquema y ruta coherentes; compilación estricta sin errores.                                                                 |
-| Licencia                 | GPL-2.0-or-later elegida por el titular; identificadores SPDX en JS, CSS y XML; texto GPL-2 incluido en COPYING.                                          |
-| Nombre                   | Búsqueda del catálogo oficial con Music Corner, cuatro páginas: sin coincidencia exacta. No constituye una reserva de nombre ni una revisión de marcas.   |
-| Cambios de escritorio    | hotCorner sustituye la esquina de Actividades del monitor principal; al destruirse la reconstruye desde la configuración actual, sin modificarla.         |
+## Cambios revisados
 
-## Correcciones realizadas
+| Área                     | Resultado y evidencia                                                                                                                                                                                                             |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lista de canciones       | Panel lateral accesible; título, artista y pista actual; detección de HasTrackList, consulta de metadatos en bloques de 100 y selección con GoTo. Reacciona a cambios de lista y de reproductor. Se oculta cuando no hay soporte. |
+| Solicitudes obsoletas    | Revisión de la lista y vigencia del reproductor antes de aplicar resultados. Cancelación al retirar reproductores o destruir el cliente.                                                                                          |
+| Apertura del reproductor | Carátula y título respetan CanRaise; la tarjeta libera su captura modal antes de enviar Raise.                                                                                                                                    |
+| Letras                   | Tres intentos ante fallos, caché solo de resultados válidos, cancelación y botón de recarga accesible.                                                                                                                            |
+| Composición              | Inhibición de unredirect al abrir la tarjeta; restauración al cerrarla o destruirla, sin acumular inhibiciones al reabrir.                                                                                                        |
+| Desactivación            | Retirada de señales, temporizadores, atajo, captura y actores; cancelación de consultas y restauración de la esquina de Actividades.                                                                                              |
+| Red                      | Consultas asíncronas y cancelables; letras limitadas a 512 KiB y 12 segundos por intento. Carátulas limitadas a 2 MiB. Sin telemetría.                                                                                            |
+| Metadatos                | Descripción actualizada con TrackList, Raise y recuperación de letras; misma identidad y compatibilidad declarada. Sin versión numérica impuesta por el proyecto.                                                                 |
+| Distribución             | JavaScript legible, CSS, metadatos, esquema XML y COPYING. Sin herramientas de desarrollo, dependencias npm ni capturas.                                                                                                          |
+| Licencia                 | GPL-2.0-or-later; COPYING incluido en el ZIP.                                                                                                                                                                                     |
 
-- Incorporada la licencia y su inclusión explícita mediante gnome-extensions pack.
-- Corregido el rótulo MUSIC COMPANION que permanecía en la tarjeta.
-- Ampliada la descripción pública para explicar controles, atajo, letras opcionales, consultas a LRCLIB, carátulas remotas y sustitución temporal de Actividades.
-- Mantenido el UUID y el esquema para conservar la identidad y los ajustes existentes.
+## Verificación ejecutada
 
-## Verificación
-
-- npm run check: ESLint, Prettier, sintaxis JavaScript/Python y esquema GSettings.
-- npm test: parser LRC, servidor y cliente MPRIS, interfaz GNOME Shell 50 y preferencias GTK4.
-- Las pruebas GNOME usan un monitor virtual de 1280 × 720, bus privado y reproductores simulados. Se comprueban esquina, controles, búsqueda, teclado, letras con respuestas deterministas, preferencias y desactivación/reactivación.
-- Inspección del ZIP: integridad CRC, 17 archivos, COPYING y XML presentes, bytes idénticos a src/, sin archivos de desarrollo.
-- Los avisos de servicios de la sesión aislada (portales, IBus, fondo, GVfs y PipeWire) no hicieron fallar las pruebas. No se observaron JS ERROR de la extensión.
-
-## Pendiente antes de dar por cerrada la validación
-
-- Probar con reproductores reales y con una consulta real a LRCLIB; las pruebas de letras usan respuestas simuladas.
-- Comprobar bloqueo/desbloqueo de sesión, varios monitores y escalado fraccional en un escritorio real.
-- URL de soporte configurada en metadata.json: https://github.com/Alanpro204/music-corner (repositorio facilitado por el autor).
-- Revisar con el autor la procedencia de cualquier código o recurso externo y añadir atribuciones si corresponde. El paquete no incluye las carátulas ni las letras utilizadas durante la ejecución.
-- El autor debe comprender y poder explicar el código presentado, de acuerdo con la regla sobre asistencia de IA de las directrices.
-- Iniciar sesión en extensions.gnome.org, revisar los campos y condiciones del formulario autenticado y subir el ZIP cuando se decida publicar.
+- `npm run check`: ESLint, Prettier, sintaxis JavaScript/Python y compilación estricta del esquema GSettings.
+- `npm test`: parser LRC, servicio de letras con recuperación/caché/cancelación, contrato MPRIS y cliente con bus privado, interfaz GNOME Shell 50 y preferencias GTK4.
+- La prueba de Shell comprueba esquina, ratón y teclado, controles, búsqueda, TrackList, Raise, letras con respuestas deterministas, temas, composición, preferencias y desactivación/reactivación.
+- Las pruebas de integración se ejecutaron fuera del sandbox para permitir sockets D-Bus y el compositor virtual. Usan un bus y una sesión de pruebas aislados.
+- El simulador provoca un error `GetTracksMetadata: Metadata unavailable` para comprobar la recuperación. Los avisos de servicios de la sesión aislada no hicieron fallar las pruebas. Registro de Shell: `.dev/shell-smoke.log`.
+- ZIP reconstruido para 0.3.0: integridad CRC, metadatos, licencia, esquema y correspondencia con los archivos de `src/` comprobados. La copia versionada contiene los mismos bytes.
 
 ## Paquete
 
-Archivo: dist/music-companion@alanpro.dev.shell-extension.zip
+Archivo para GNOME: `dist/music-companion@alanpro.dev.shell-extension.zip`.
 
-SHA-256: 1cb416bc3089820bf235d311b93677e54e44364ccd50cbc69ee941c51651e951
+Copia para GitHub: `dist/music-corner-0.3.0.shell-extension.zip`.
 
-Esta revisión no equivale a la aprobación de GNOME ni a una validación completa con reproductores reales.
+SHA-256 de ambos: `30251e45b1fd7aac660ebde39e711ccde960d153e874d8b749aa6f3287cb12fa`.
 
-## Ampliación de compatibilidad
+Sumas: `dist/SHA256SUMS`.
 
-Por indicación del autor, metadata.json declara GNOME Shell 45, 46, 47, 48, 49 y 50. La compatibilidad con 45–49 se asume; no se ha ejecutado la extensión en esas versiones. La revisión anterior y los resultados de ejecución corresponden a GNOME 50. Se ha añadido detección de las APIs de ScrollView para el ajuste vertical y el contenedor de letras de GNOME 45.
+## Límites de la validación
 
-GNOME 44 y anteriores no se incluyen: usan el sistema de módulos anterior a ESM y requieren otra implementación. Referencia: [migración a GNOME 45](https://gjs.guide/extensions/upgrading/gnome-shell-45.html).
+- GNOME 45–49 conserva la compatibilidad declarada por decisión del autor; esta entrega se ha ejecutado solo en GNOME 50.
+- Las pruebas usan reproductores simulados y respuestas de letras deterministas. Queda pendiente validar reproductores reales y una consulta real a LRCLIB.
+- Queda pendiente comprobar bloqueo/desbloqueo, varios monitores y escalado fraccional en un escritorio real. La prueba de composición comprueba el equilibrio de las llamadas; no sustituye una prueba visual sobre una aplicación real a pantalla completa.
+- Las capturas del README muestran una versión anterior con el nombre Music Companion; no ilustran el nuevo panel Canciones.
 
-Tras ampliar la compatibilidad, lint, formato, sintaxis, esquemas, LRC y MPRIS pasaron. La primera sesión de pruebas de Shell no cargó la extensión dentro del plazo; la repetición sin modificar el código pasó, incluidas las preferencias y la limpieza. Las versiones 45–49 permanecen sin pruebas de ejecución.
+## Referencias de publicación
+
+Consultadas el 2 de noviembre de 2026:
+
+- [Directrices de revisión de GNOME](https://gjs.guide/extensions/review-guidelines/review-guidelines.html): inicialización estática, activación y limpieza, código distribuido y revisión del autor.
+- [Estructura y metadatos de una extensión](https://gjs.guide/extensions/overview/anatomy.html): ZIP, UUID, compatibilidad y versión pública.
+- [Formulario de subida](https://extensions.gnome.org/upload/): destino de la entrega; los campos y condiciones autenticados deben revisarse al enviar.
+
+El autor debe revisar la procedencia de recursos externos, añadir atribuciones cuando corresponda y comprender el código que presenta. El paquete no incluye las carátulas ni las letras consultadas durante su uso. Esta revisión local no equivale a la aprobación de GNOME.
