@@ -31,6 +31,145 @@ try {
         'No descubre el reproductor inicial',
     );
     const initial = client.snapshot.selected;
+    await until(
+        () => client.snapshot.selected.trackList.supported,
+        'No lee capacidades raíz',
+    );
+    assert(!(await client.raise()), 'Ignora CanRaise desactivado');
+    assert(first.getRaiseCount() === 0, 'Llama a Raise sin capacidad');
+    first.updateRoot({ CanRaise: true });
+    await until(
+        () => client.snapshot.selected.canRaise,
+        'No actualiza CanRaise',
+    );
+    first.update({ CanControl: false });
+    await until(
+        () => !client.snapshot.selected.canControl,
+        'No desactiva controles',
+    );
+    assert(
+        await client.raise(),
+        'No abre el reproductor sin controles de audio',
+    );
+    assert(first.getRaiseCount() === 1, 'No llama a Raise en la interfaz raíz');
+    first.update({ CanControl: true });
+    await until(
+        () => client.snapshot.selected.canControl,
+        'No restaura controles',
+    );
+    first.updateRoot({ HasTrackList: false });
+    await until(
+        () => !client.snapshot.selected.trackList.supported,
+        'No desactiva TrackList',
+    );
+    first.updateRoot({ HasTrackList: true });
+    await until(
+        () => client.snapshot.selected.trackList.tracks.length === 3,
+        'No carga TrackList',
+    );
+    assert(
+        client.snapshot.selected.trackList.tracks[2].title === 'Última canción',
+        'No carga los metadatos de la lista',
+    );
+    assert(
+        await client.goToTrack('/mock/track/2', MOCK_BUS_NAME),
+        'No ejecuta GoTo',
+    );
+    await until(
+        () => client.snapshot.selected.title === 'Última canción',
+        'GoTo no cambia la canción',
+    );
+    assert(
+        client.snapshot.selected.status === 'Paused',
+        'GoTo cambia indebidamente el estado',
+    );
+    assert(
+        !(await client.goToTrack('/mock/track/99', MOCK_BUS_NAME)),
+        'Permite una pista inexistente',
+    );
+    assert(
+        !(await client.goToTrack('/mock/track/0', 'otro-reproductor')),
+        'Permite una selección obsoleta',
+    );
+    first.update({ CanControl: false });
+    await until(
+        () => !client.snapshot.selected.canControl,
+        'No recibe CanControl',
+    );
+    assert(
+        !(await client.goToTrack('/mock/track/0', MOCK_BUS_NAME)),
+        'GoTo ignora CanControl',
+    );
+    first.update({ CanControl: true });
+    await until(
+        () => client.snapshot.selected.canControl,
+        'No restaura CanControl',
+    );
+    first.removeTrack('/mock/track/1');
+    await until(
+        () => client.snapshot.selected.trackList.tracks.length === 2,
+        'Ignora TrackRemoved',
+    );
+    assert(
+        !(await client.goToTrack('/mock/track/1', MOCK_BUS_NAME)),
+        'Permite una pista eliminada',
+    );
+    first.addTrack('/mock/track/1', '/mock/track/0');
+    await until(
+        () => client.snapshot.selected.trackList.tracks.length === 3,
+        'Ignora TrackAdded',
+    );
+    assert(
+        client.snapshot.selected.trackList.tracks[1].id === '/mock/track/1',
+        'No conserva el orden',
+    );
+    first.renameTrack('/mock/track/1', 'Título actualizado');
+    await until(
+        () =>
+            client.snapshot.selected.trackList.tracks[1].title ===
+            'Título actualizado',
+        'Ignora TrackMetadataChanged',
+    );
+    first.renameTrack('/mock/track/1', 'Segunda canción');
+    first.replaceTracks(['/mock/track/2', '/mock/track/0']);
+    await until(
+        () =>
+            !client.snapshot.selected.trackList.loading &&
+            client.snapshot.selected.trackList.tracks[0]?.id ===
+                '/mock/track/2',
+        'Ignora TrackListReplaced',
+    );
+    first.replaceTracks([]);
+    await until(
+        () =>
+            !client.snapshot.selected.trackList.loading &&
+            client.snapshot.selected.trackList.tracks.length === 0,
+        'No acepta lista vacía',
+    );
+    first.setMetadataError(true);
+    first.replaceTracks(['/mock/track/0']);
+    await until(
+        () => !!client.snapshot.selected.trackList.error,
+        'No presenta error de metadatos',
+    );
+    first.setMetadataError(false);
+    client.refreshTracks();
+    await until(
+        () =>
+            !client.snapshot.selected.trackList.loading &&
+            !client.snapshot.selected.trackList.error,
+        'No recupera tras error',
+    );
+    first.replaceTracks(['/mock/track/0', '/mock/track/1', '/mock/track/2']);
+    await until(
+        () => client.snapshot.selected.trackList.tracks.length === 3,
+        'No restaura lista',
+    );
+    await client.goToTrack('/mock/track/0', MOCK_BUS_NAME);
+    await until(
+        () => client.snapshot.selected.title === 'Canción de prueba',
+        'No restaura pista inicial',
+    );
     assert(
         initial.duration === 180000000 && initial.canSeek,
         'No lee duración/capacidad',
@@ -110,6 +249,7 @@ try {
         name: other,
         identity: 'Segundo reproductor',
         duration: 0,
+        trackList: false,
     });
     await until(
         () => client.snapshot.selected?.name === other,
@@ -118,6 +258,18 @@ try {
     assert(
         !(await client.seek(1000000, client.snapshot.selected)),
         'Permite buscar sin duración',
+    );
+    await until(
+        () => client.snapshot.selected.identity === 'Segundo reproductor',
+        'No carga segundo reproductor',
+    );
+    assert(
+        !client.snapshot.selected.trackList.supported,
+        'Inventa TrackList sin soporte',
+    );
+    assert(
+        !(await client.goToTrack('/mock/track/0', other)),
+        'Permite GoTo sin TrackList',
     );
     client.select(MOCK_BUS_NAME);
     assert(

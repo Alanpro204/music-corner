@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import Meta from 'gi://Meta';
 import Pango from 'gi://Pango';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
@@ -9,6 +10,7 @@ import { Artwork } from './artwork.js';
 import { PlayerTheme } from './theme.js';
 import { Progress } from './progress.js';
 import { Lyrics } from './lyrics.js';
+import { Tracks } from './tracks.js';
 
 function label(text, style) {
     const actor = new St.Label({ text, style_class: style, x_expand: true });
@@ -33,7 +35,7 @@ export class PlayerCard {
         this._settings = settings;
         this.actor = new St.BoxLayout({
             name: 'music-companion-card',
-            vertical: true,
+            vertical: false,
             reactive: true,
             track_hover: true,
             visible: false,
@@ -41,6 +43,7 @@ export class PlayerCard {
         this._card = new St.BoxLayout({
             vertical: true,
             style_class: 'mc-card',
+            y_align: Clutter.ActorAlign.START,
         });
         this.actor.add_child(this._card);
         const header = new St.BoxLayout({ style_class: 'mc-header' });
@@ -94,7 +97,13 @@ export class PlayerCard {
         this._artwork = new Artwork(this._art, (color) =>
             this._theme.setCoverColor(color),
         );
-        this._track.add_child(this._art);
+        this._artButton = new St.Button({
+            style_class: 'mc-open-player',
+            can_focus: true,
+            child: this._art,
+        });
+        this._artButton.connect('clicked', () => this._openPlayer());
+        this._track.add_child(this._artButton);
         const text = new St.BoxLayout({
             vertical: true,
             x_expand: true,
@@ -103,7 +112,14 @@ export class PlayerCard {
         this.title = label('Tu música, a un gesto', 'mc-title');
         this.artist = label('Abre un reproductor para empezar', 'mc-artist');
         this._status = label('Sin reproducción', 'mc-status');
-        text.add_child(this.title);
+        this._titleButton = new St.Button({
+            style_class: 'mc-open-player',
+            can_focus: true,
+            x_expand: true,
+            child: this.title,
+        });
+        this._titleButton.connect('clicked', () => this._openPlayer());
+        text.add_child(this._titleButton);
         text.add_child(this.artist);
         text.add_child(this._status);
         this._track.add_child(text);
@@ -164,6 +180,20 @@ export class PlayerCard {
             visible: false,
         });
         body.add_child(this._players);
+        this.tracksButton = new St.Button({
+            label: 'Canciones  ▸',
+            style_class: 'mc-selector',
+            can_focus: true,
+            accessible_name: 'Mostrar canciones',
+        });
+        this.tracksButton.connect('clicked', () => this._toggleTracks());
+        body.add_child(this.tracksButton);
+        this._tracks = new Tracks(
+            client,
+            () => this._theme?.refresh(),
+            () => this._toggleTracks(),
+        );
+        this.actor.add_child(this._tracks.actor);
         body.add_child(
             label('Ctrl + Alt + M para abrir · Esc para cerrar', 'mc-hint'),
         );
@@ -209,6 +239,15 @@ export class PlayerCard {
         if (!monitor || Main.overview.visible || Main.sessionMode.isLocked)
             return;
         this._cancelClose();
+        // Fullscreen clients can bypass compositing even while this actor is
+        // reactive. Keep Shell overlays painted, as GNOME does for its OSDs.
+        // Repeated opens must hold only one unredirect inhibition.
+        if (!this._unredirectDisabled) {
+            if (Meta.disable_unredirect_for_display)
+                Meta.disable_unredirect_for_display(global.display);
+            else global.compositor.disable_unredirect();
+            this._unredirectDisabled = true;
+        }
         this.actor.set_position(monitor.x, monitor.y);
         // Put the visible button above the corner sensor, so the very next
         // click reaches it without any pointer movement or coordinate warping.
@@ -217,6 +256,9 @@ export class PlayerCard {
         this.progress.start();
         this._resizeLyrics();
         this._lyrics.start();
+        this._resizeTracks();
+        this._tracks.render();
+        if (this._tracks.actor.visible) this._client.refreshTracks();
         this._keyboard = keyboard || this._keyboard;
         if (keyboard) {
             if (!this._grab)
@@ -234,8 +276,43 @@ export class PlayerCard {
         const monitor = Main.layoutManager.primaryMonitor;
         if (!monitor) return;
         // Reserve room for the footer and the manual-scroll return button.
-        const height = Math.max(80, Math.min(300, monitor.height - 500));
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const height = Math.max(
+            80,
+            Math.min(300, monitor.height / scale - 560),
+        );
         this._lyrics.resize(height);
+    }
+
+    _resizeTracks() {
+        const monitor = Main.layoutManager.primaryMonitor;
+        if (!monitor) return;
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        this._tracks.resize(
+            Math.min(320, Math.max(160, monitor.width / scale - 420)),
+            Math.max(100, Math.min(420, monitor.height / scale - 170)),
+        );
+    }
+
+    _toggleTracks() {
+        const enabled = !this._tracks.actor.visible;
+        if (enabled && !this._client.snapshot.selected?.trackList.supported)
+            return;
+        const focus = global.stage.get_key_focus();
+        if (!enabled && focus && this._tracks.actor.contains(focus))
+            this.tracksButton.grab_key_focus();
+        this._tracks.actor.visible = enabled;
+        this.tracksButton.label = enabled ? 'Canciones  ◂' : 'Canciones  ▸';
+        this.tracksButton.accessible_name = enabled
+            ? 'Ocultar canciones'
+            : 'Mostrar canciones';
+        if (enabled) {
+            this.tracksButton.add_style_class_name('mc-tracks-on');
+            this._resizeTracks();
+            this._tracks.render();
+            this._client.refreshTracks();
+        } else this.tracksButton.remove_style_class_name('mc-tracks-on');
+        this._theme.refresh();
     }
 
     _toggleLyrics() {
@@ -276,6 +353,12 @@ export class PlayerCard {
         this._keyboard = false;
         this._players.hide();
         this.actor.hide();
+        if (this._unredirectDisabled) {
+            if (Meta.enable_unredirect_for_display)
+                Meta.enable_unredirect_for_display(global.display);
+            else global.compositor.enable_unredirect();
+            this._unredirectDisabled = false;
+        }
     }
 
     _event(event) {
@@ -364,6 +447,13 @@ export class PlayerCard {
         this._closeTimer = 0;
     }
 
+    async _openPlayer() {
+        // Release the modal grab before the player tries to focus its window.
+        if (!this._client.snapshot.selected?.canRaise) return;
+        this.close();
+        await this._client.raise();
+    }
+
     async _skip(direction) {
         if (this._busy) return;
         this._busy = true;
@@ -394,6 +484,26 @@ export class PlayerCard {
     _render({ selected, players, error }) {
         this.progress.render(selected);
         this._lyrics.render(selected);
+        const supportsTracks = !!selected?.trackList.supported;
+        const focus = global.stage.get_key_focus();
+        if (
+            !supportsTracks &&
+            (focus === this.tracksButton ||
+                (focus && this._tracks.actor.contains(focus)))
+        )
+            this._closeButton.grab_key_focus();
+        this.tracksButton.visible = supportsTracks;
+        this.tracksButton.reactive = supportsTracks;
+        this.tracksButton.can_focus = supportsTracks;
+        if (!supportsTracks && this._tracks.actor.visible) this._toggleTracks();
+        this._tracks.render(selected);
+        for (const control of [this._artButton, this._titleButton]) {
+            control.reactive = !!selected?.canRaise;
+            control.can_focus = control.reactive;
+            control.accessible_name = selected
+                ? `Abrir ${selected.identity}`
+                : 'Abrir reproductor';
+        }
         this.title.text = selected?.title || 'Tu música, a un gesto';
         this.artist.text =
             selected?.artist || 'Abre un reproductor para empezar';
@@ -469,6 +579,7 @@ export class PlayerCard {
         this._artwork.destroy();
         this.progress.destroy();
         this._lyrics.destroy();
+        this._tracks.destroy();
         global.stage.disconnect(this._stageId);
         Main.layoutManager.disconnect(this._monitorId);
         Main.overview.disconnect(this._overviewId);

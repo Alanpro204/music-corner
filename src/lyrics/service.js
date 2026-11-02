@@ -5,6 +5,7 @@ import Soup from 'gi://Soup?version=3.0';
 import { parseLrc } from './lrc.js';
 
 const MAX_BYTES = 512 * 1024;
+const MAX_ATTEMPTS = 3;
 export function lyricsKey(track) {
     return JSON.stringify([
         track?.title,
@@ -46,6 +47,24 @@ export class LyricsService {
         const query = Object.entries(params)
             .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
             .join('&');
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            if (cancel.is_cancelled()) return null;
+            try {
+                const result = await this._fetch(query, cancel);
+                if (cancel.is_cancelled()) return null;
+                this._remember(key, result);
+                return result;
+            } catch {
+                if (cancel.is_cancelled()) return null;
+            }
+        }
+        return {
+            message: 'No se pudieron cargar las letras. Vuelve a intentarlo.',
+            retryable: true,
+        };
+    }
+
+    async _fetch(query, cancel) {
         const message = Soup.Message.new(
             'GET',
             `https://lrclib.net/api/get?${query}`,
@@ -74,7 +93,6 @@ export class LyricsService {
                 const result = {
                     message: 'No hay letras disponibles para esta canción.',
                 };
-                this._remember(key, result);
                 return result;
             }
             if (
@@ -130,15 +148,7 @@ export class LyricsService {
                           ? ''
                           : 'No hay letras sincronizadas para esta canción.',
                   };
-            this._remember(key, result);
             return result;
-        } catch {
-            return cancel.is_cancelled()
-                ? null
-                : {
-                      message:
-                          'No se pudieron cargar las letras. Vuelve a intentarlo.',
-                  };
         } finally {
             stream?.close_async(
                 GLib.PRIORITY_DEFAULT,

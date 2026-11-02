@@ -31,6 +31,15 @@
     background-color: #263545;
     border-radius: 14px;
 }
+.mc-open-player {
+    padding: 0;
+    border-radius: 14px;
+    background-color: transparent;
+}
+.mc-open-player:hover,
+.mc-open-player:focus {
+    box-shadow: inset 0 0 0 2px #9be4c8;
+}
 .mc-title {
     font-size: 19px;
     font-weight: 800;
@@ -179,4 +188,42 @@
 .mc-lyrics-message {
     font-size: 14px;
     font-weight: 400;
+}
+
+.mc-track-panel {
+    width: 320px;
+    padding: 18px;
+    spacing: 12px;
+    color: #f3f5fa;
+    background-color: #171c26;
+    border: 1px solid #343c4c;
+    border-left-width: 0;
+    border-radius: 0 0 18px 0;
+}
+.mc-track-panel-header {
+    spacing: 8px;
+}
+.mc-track-panel-title {
+    font-size: 17px;
+    font-weight: 800;
+    padding-top: 10px;
+}
+.mc-track-scroll {
+    height: 420px;
+}
+.mc-tracks {
+    spacing: 5px;
+}
+.mc-track-choice {
+    padding: 10px;
+    min-height: 44px;
+    border-radius: 10px;
+}
+.mc-track-row {
+    spacing: 10px;
+}
+.mc-track-name {
+    font-size: 13px;
+    font-weight: 700;
+    padding-bottom: 4px;
 }

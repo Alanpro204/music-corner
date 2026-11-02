@@ -2,6 +2,7 @@
 export const BUS_PREFIX = 'org.mpris.MediaPlayer2.';
 export const OBJECT_PATH = '/org/mpris/MediaPlayer2';
 export const PLAYER_INTERFACE = 'org.mpris.MediaPlayer2.Player';
+export const TRACK_LIST_INTERFACE = 'org.mpris.MediaPlayer2.TrackList';
 
 // Some players (including G4Music) omit mpris:trackid. Use metadata to
 // invalidate gestures when their song changes, rather than disabling seeking.

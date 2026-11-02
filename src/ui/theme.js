@@ -93,8 +93,10 @@ export class PlayerTheme {
                 );
                 const interactive =
                     classes.has('mc-button') ||
+                    classes.has('mc-open-player') ||
                     classes.has('mc-selector') ||
                     classes.has('mc-player-choice') ||
+                    classes.has('mc-track-choice') ||
                     classes.has('mc-seek');
                 if (interactive && !this._widgets.has(actor)) {
                     actor.track_hover = true;
@@ -110,7 +112,7 @@ export class PlayerTheme {
                     interactive && (actor.hover || actor === focus);
                 const focused = interactive && actor === focus;
                 let style = null;
-                if (classes.has('mc-card'))
+                if (classes.has('mc-card') || classes.has('mc-track-panel'))
                     style = `color: ${colors.text}; background-color: ${colors.background}; border-color: ${colors.border};`;
                 else if (
                     classes.has('mc-eyebrow') ||
@@ -127,7 +129,11 @@ export class PlayerTheme {
                     classes.has('mc-lyrics-message')
                 )
                     style = `color: ${colors.muted};`;
-                else if (classes.has('mc-lyrics-on'))
+                else if (
+                    classes.has('mc-lyrics-on') ||
+                    classes.has('mc-tracks-on') ||
+                    classes.has('mc-track-current')
+                )
                     style = `color: ${colors.accent}; background-color: ${colors.surface};${highlighted ? ` box-shadow: inset 0 0 0 2px ${colors.accent};` : ''}`;
                 else if (classes.has('mc-status'))
                     style = `color: ${colors.accent};`;
@@ -140,6 +146,8 @@ export class PlayerTheme {
                     classes.has('mc-play-center')
                 )
                     style = `color: ${colors.ink}; background-color: ${colors.accent};${highlighted ? ` box-shadow: inset 0 0 0 2px ${colors.ink};` : ''}`;
+                else if (classes.has('mc-open-player'))
+                    style = `color: ${colors.text}; background-color: transparent;${highlighted ? ` box-shadow: inset 0 0 0 2px ${colors.accent};` : ''}`;
                 else if (interactive)
                     style = `color: ${colors.text}; background-color: ${classes.has('mc-small') ? 'transparent' : highlighted ? colors.hover : colors.surface};${highlighted ? ` box-shadow: inset 0 0 0 2px ${colors.accent};` : ''}`;
                 if (style !== null && actor.get_style() !== style)

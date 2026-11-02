@@ -29,7 +29,12 @@ export async function run() {
         .get_parent()
         .get_child('fixtures/cover-wide.svg')
         .get_uri();
-    const stop = startMockPlayer({ artUrl: cover, omitTrackId: true });
+    const stop = startMockPlayer({
+        artUrl: cover,
+        omitTrackId: true,
+        canRaise: true,
+    });
+    let trackPlayer;
     const seat = Clutter.get_default_backend().get_default_seat();
     const pointer = seat.create_virtual_device(
         Clutter.InputDeviceType.POINTER_DEVICE,
@@ -93,11 +98,70 @@ export async function run() {
             'No recupera el icono de la barra',
         );
         assert(!Main.overview.visible, 'La esquina activó también Actividades');
+        // Fullscreen overlays need balanced compositor inhibition. Exercise
+        // repeated opens/closes, including teardown while the card is open.
+        const compositor = global.compositor;
+        const disableUnredirect = compositor.disable_unredirect;
+        const enableUnredirect = compositor.enable_unredirect;
+        let inhibits = 0;
+        let restores = 0;
+        compositor.disable_unredirect = function () {
+            inhibits++;
+            return disableUnredirect.call(this);
+        };
+        compositor.enable_unredirect = function () {
+            restores++;
+            return enableUnredirect.call(this);
+        };
+        try {
+            extension.card.open();
+            assert(inhibits === 0, 'Reabrir acumula bloqueos del compositor');
+            extension.card.close();
+            extension.card.close();
+            assert(restores === 1, 'Cerrar no restaura el compositor una vez');
+            extension.card.open();
+            extension.card.open();
+            assert(inhibits === 1, 'Abrir no activa la composición una vez');
+        } finally {
+            compositor.disable_unredirect = disableUnredirect;
+            compositor.enable_unredirect = enableUnredirect;
+        }
         await Scripting.sleep(250);
         assert(
             extension.card.title.text === 'Canción de prueba',
             'Título incorrecto',
         );
+        await until(
+            () => extension.card._artButton.reactive,
+            'No habilita abrir reproductor',
+        );
+        for (const control of [
+            extension.card._artButton,
+            extension.card._titleButton,
+        ]) {
+            const before = stop.getRaiseCount();
+            await click(control);
+            await until(
+                () => stop.getRaiseCount() === before + 1,
+                'Portada o título no abre el reproductor',
+            );
+            assert(
+                !extension.card.isOpen,
+                'Abrir el reproductor deja el menú encima',
+            );
+            extension.card.open();
+            await Scripting.sleep(150);
+        }
+        stop.updateRoot({ CanRaise: false });
+        await until(
+            () =>
+                !extension.card._artButton.reactive &&
+                !extension.card._titleButton.can_focus,
+            'Ignora CanRaise',
+        );
+        stop.updateRoot({ CanRaise: true });
+        move(monitor.x, monitor.y);
+        await Scripting.sleep(100);
         const [playX, playY] = extension.card.play.get_transformed_position();
         assert(
             playX === monitor.x && playY === monitor.y,
@@ -234,6 +298,147 @@ export async function run() {
         await until(
             () => extension.client.snapshot.selected.status === 'Playing',
             'El botón central no reanuda',
+        );
+        await click(extension.card.tracksButton);
+        const tracks = extension.card._tracks;
+        await until(
+            () =>
+                tracks.actor.visible &&
+                tracks._rows.length === 3 &&
+                tracks._rows[2].button.width > 0,
+            'No abre la lista de canciones',
+        );
+        const [panelX] = tracks.actor.get_transformed_position();
+        const [cardX] = extension.card._card.get_transformed_position();
+        assert(
+            panelX >= cardX + extension.card._card.width - 1,
+            'La lista no aparece a la derecha',
+        );
+        await click(tracks._rows[2].button);
+        await until(
+            () => extension.card.title.text === 'Última canción',
+            'El clic en la lista no cambia de canción',
+        );
+        await Scripting.sleep(450);
+        assert(
+            extension.card.isOpen,
+            'El menú se cierra al entrar en la lista',
+        );
+        const tracksScreenshot = GLib.getenv('MC_TRACKS_SCREENSHOT');
+        if (tracksScreenshot) {
+            const stream = Gio.File.new_for_path(tracksScreenshot).replace(
+                null,
+                false,
+                Gio.FileCreateFlags.NONE,
+                null,
+            );
+            await new Shell.Screenshot().screenshot(false, stream);
+            stream.close(null);
+        }
+        stop.update({ CanControl: false });
+        await until(
+            () => tracks._rows.every(({ button }) => !button.reactive),
+            'La lista ignora CanControl',
+        );
+        stop.update({ CanControl: true });
+        await until(
+            () => tracks._rows[0].button.reactive,
+            'La lista no recupera sus controles',
+        );
+        tracks._rows[0].button.grab_key_focus();
+        key(Clutter.KEY_Return, Clutter.KeyState.PRESSED);
+        key(Clutter.KEY_Return, Clutter.KeyState.RELEASED);
+        await until(
+            () => extension.card.title.text === 'Canción de prueba',
+            'El teclado no selecciona canciones',
+        );
+        trackPlayer = startMockPlayer({
+            name: 'org.mpris.MediaPlayer2.TrackListMock',
+            identity: 'Lista de prueba',
+            status: 'Paused',
+            tracks: Array.from(
+                { length: 30 },
+                (_item, index) => `Pista ${index + 1}`,
+            ),
+        });
+        await until(
+            () => extension.client.snapshot.players.length === 2,
+            'No descubre el segundo reproductor',
+        );
+        extension.client.select('org.mpris.MediaPlayer2.TrackListMock');
+        await until(
+            () =>
+                tracks._rows.length === 30 &&
+                tracks._rows[25].button.height > 0,
+            'No cambia la lista al elegir otro reproductor',
+        );
+        tracks._rows[25].button.grab_key_focus();
+        key(Clutter.KEY_Return, Clutter.KeyState.PRESSED);
+        key(Clutter.KEY_Return, Clutter.KeyState.RELEASED);
+        await until(
+            () =>
+                extension.card.title.text === 'Pista 26' &&
+                tracks._rows[25].marker.opacity === 255,
+            'No selecciona o marca la pista fuera de la vista inicial',
+        );
+        const adjustment =
+            typeof tracks.scroll.get_vadjustment === 'function'
+                ? tracks.scroll.get_vadjustment()
+                : tracks.scroll.get_vscroll_bar().get_adjustment();
+        assert(adjustment.value > 0, 'El foco no desplaza la lista');
+        trackPlayer.replaceTracks(['/mock/track/0', '/mock/track/25']);
+        await until(
+            () => tracks._rows.length === 2,
+            'No actualiza las filas al reemplazar la lista',
+        );
+        trackPlayer();
+        trackPlayer = startMockPlayer({
+            name: 'org.mpris.MediaPlayer2.TrackListMock',
+            identity: 'Sin lista',
+            status: 'Paused',
+            trackList: false,
+        });
+        await until(
+            () =>
+                extension.client.snapshot.players.some(
+                    (player) => player.identity === 'Sin lista',
+                ),
+            'No descubre reproductor sin lista',
+        );
+        extension.client.select('org.mpris.MediaPlayer2.TrackListMock');
+        await until(
+            () => !extension.card.tracksButton.visible && !tracks.actor.visible,
+            'No oculta el botón y la lista sin soporte TrackList',
+        );
+        extension.card._toggleTracks();
+        assert(!tracks.actor.visible, 'Abre la lista sin soporte');
+        trackPlayer();
+        extension.client.select('org.mpris.MediaPlayer2.MusicCompanionMock');
+        await until(
+            () => extension.card.tracksButton.visible,
+            'No restaura el botón de canciones',
+        );
+        await click(extension.card.tracksButton);
+        await until(
+            () => tracks.actor.visible && tracks._rows.length === 3,
+            'No restaura las canciones del reproductor original',
+        );
+        stop.updateRoot({ HasTrackList: false });
+        await until(
+            () => !extension.card.tracksButton.visible && !tracks.actor.visible,
+            'No oculta TrackList al retirar la capacidad',
+        );
+        stop.updateRoot({ HasTrackList: true });
+        await until(
+            () => extension.card.tracksButton.visible,
+            'No recupera TrackList al restaurar la capacidad',
+        );
+        await click(extension.card.tracksButton);
+        await until(() => tracks.actor.visible, 'No reabre la lista');
+        await click(extension.card.tracksButton);
+        await until(
+            () => !tracks.actor.visible,
+            'No oculta la lista de canciones',
         );
         await click(extension.card.next);
         await until(
@@ -430,6 +635,38 @@ export async function run() {
         interfaceSettings.set_boolean('enable-animations', true);
         const lyrics = extension.card._lyrics;
         const originalLoad = lyrics._service.load.bind(lyrics._service);
+        const originalFetch = lyrics._service._fetch;
+        let lyricAttempts = 0;
+        lyrics._service._fetch = async () => {
+            lyricAttempts++;
+            throw new Error('Fallo de red de prueba');
+        };
+        await click(extension.card.lyricsButton);
+        await until(
+            () => lyrics._retry?.height > 0,
+            'No muestra el botón de recarga tras fallar',
+        );
+        assert(lyricAttempts === 3, 'No hace tres intentos de carga');
+        assert(
+            lyrics._retry.child.icon_name === 'view-refresh-symbolic',
+            'Icono de recarga incorrecto',
+        );
+        assert(
+            lyrics._retry.y >= lyrics._rows[0].y + lyrics._rows[0].height,
+            'Recarga no queda debajo del error',
+        );
+        lyrics._service._fetch = async () => ({
+            message: 'Letras recuperadas',
+        });
+        await click(lyrics._retry);
+        await until(
+            () =>
+                lyrics._rows[0]?.text === 'Letras recuperadas' &&
+                !lyrics._retry,
+            'Recarga no recupera las letras',
+        );
+        await click(extension.card.lyricsButton);
+        lyrics._service._fetch = originalFetch;
         lyrics._service.load = async () => ({
             lines: Array.from({ length: 60 }, (_, i) => ({
                 time: i * 3,
@@ -668,10 +905,20 @@ export async function run() {
             !extension.card.play.reactive,
             'Estado vacío deja controles activos',
         );
+        const oldCard = extension.card;
+        oldCard.open();
+        assert(
+            oldCard._unredirectDisabled,
+            'No mantiene la composición al abrir',
+        );
         Main.extensionManager.disableExtension(UUID);
         await until(
             () => !Main.panel.statusArea[UUID],
             'disable() dejó el indicador',
+        );
+        assert(
+            !oldCard._unredirectDisabled,
+            'Desactivar deja bloqueada la optimización de pantalla completa',
         );
         assert(
             !Main.layoutManager.uiGroup
@@ -722,6 +969,7 @@ export async function run() {
             'PASS: GNOME Shell esquina, controles, atajo, teclado, cierre y limpieza',
         );
     } finally {
+        trackPlayer?.();
         stop();
         pointer.run_dispose();
         keyboard.run_dispose();

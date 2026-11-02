@@ -200,13 +200,16 @@ export class Lyrics {
                       result.message,
                       ...(result.plain?.split(/\r?\n/) ?? []),
                   ].filter(Boolean),
+            !!result.retryable,
         );
         this.render();
         this._center(false);
         if (this.actor.mapped) this.start();
     }
 
-    _replace(texts) {
+    _replace(texts, retryable = false) {
+        if (this._retry?.has_key_focus()) this.scroll.grab_key_focus();
+        this._retry = null;
         this._content.destroy_all_children();
         this._spacers = [0, 1].map(
             () =>
@@ -230,6 +233,22 @@ export class Lyrics {
             this._content.add_child(row);
             return row;
         });
+        if (retryable) {
+            this._retry = new St.Button({
+                style_class: 'mc-button',
+                can_focus: true,
+                accessible_name: 'Reintentar cargar las letras',
+                x_align: Clutter.ActorAlign.CENTER,
+                child: new St.Icon({
+                    icon_name: 'view-refresh-symbolic',
+                    icon_size: 20,
+                }),
+            });
+            this._retry.connect('clicked', () =>
+                this._load(this._client.snapshot.selected),
+            );
+            this._content.add_child(this._retry);
+        }
         this._content.add_child(this._spacers[1]);
         this._adjustment.value = 0;
         this._onChange();

@@ -18,7 +18,7 @@
     "test:shell": "python3 tools/dev.py smoke",
     "test:mpris": "dbus-run-session -- gjs -m tests/mpris-smoke.js && dbus-run-session -- gjs -m tests/client-smoke.js",
     "test": "npm run test:lyrics && npm run test:mpris && npm run test:shell",
-    "test:lyrics": "node tests/lyrics-test.js",
+    "test:lyrics": "node tests/lyrics-test.js && gjs -m tests/lyrics-service-test.js",
     "mpris:list": "gjs -m tools/mpris-probe.js",
     "mpris:mock": "gjs -m tools/run-mock.js",
     "setup:devkit": "python3 tools/dev.py setup-devkit",

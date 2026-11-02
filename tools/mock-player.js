@@ -5,6 +5,7 @@ import {
     BUS_PREFIX,
     OBJECT_PATH,
     PLAYER_INTERFACE,
+    TRACK_LIST_INTERFACE,
 } from '../src/mpris/constants.js';
 
 const XML = `<node>
@@ -38,6 +39,16 @@ const XML = `<node>
     <property name="CanSeek" type="b" access="read"/>
     <property name="CanControl" type="b" access="read"/>
   </interface>
+  <interface name="${TRACK_LIST_INTERFACE}">
+    <method name="GetTracksMetadata"><arg type="ao" direction="in"/><arg type="aa{sv}" direction="out"/></method>
+    <method name="GoTo"><arg type="o" direction="in"/></method>
+    <property name="Tracks" type="ao" access="read"/>
+    <property name="CanEditTracks" type="b" access="read"/>
+    <signal name="TrackListReplaced"><arg type="ao"/><arg type="o"/></signal>
+    <signal name="TrackAdded"><arg type="a{sv}"/><arg type="o"/></signal>
+    <signal name="TrackRemoved"><arg type="o"/></signal>
+    <signal name="TrackMetadataChanged"><arg type="o"/><arg type="a{sv}"/></signal>
+  </interface>
 </node>`;
 
 export const MOCK_BUS_NAME = `${BUS_PREFIX}MusicCompanionMock`;
@@ -52,7 +63,20 @@ export function startMockPlayer(options = {}) {
     );
     const name = options.name ?? MOCK_BUS_NAME;
     let index = 0;
-    const tracks = ['Canción de prueba', 'Segunda canción', 'Última canción'];
+    const tracks = options.tracks ?? [
+        'Canción de prueba',
+        'Segunda canción',
+        'Última canción',
+    ];
+    let trackIds = tracks.map((_title, i) => `/mock/track/${i}`);
+    const trackMetadata = (id) => ({
+        'mpris:trackid': new GLib.Variant('o', id),
+        'xesam:title': new GLib.Variant(
+            's',
+            tracks[Number(id.split('/').pop())] ?? 'Nueva canción',
+        ),
+        'xesam:artist': new GLib.Variant('as', ['Music Corner']),
+    });
     let basePosition = options.position ?? 0;
     let baseTime = GLib.get_monotonic_time();
     const state = {
@@ -159,22 +183,50 @@ export function startMockPlayer(options = {}) {
         );
     }
     const node = Gio.DBusNodeInfo.new_for_xml(XML);
-    const root = Gio.DBusExportedObject.wrapJSObject(node.interfaces[0], {
+    let raiseCount = 0;
+    const rootState = {
         CanQuit: false,
-        CanRaise: false,
-        HasTrackList: false,
+        CanRaise: options.canRaise ?? false,
+        HasTrackList: options.trackList !== false,
         Identity: options.identity ?? 'Music Corner Mock (sin audio)',
         SupportedUriSchemes: [],
         SupportedMimeTypes: [],
-        Raise() {},
+        Raise() {
+            raiseCount++;
+            options.onRaise?.();
+        },
         Quit() {},
-    });
+    };
+    const root = Gio.DBusExportedObject.wrapJSObject(
+        node.interfaces[0],
+        rootState,
+    );
     const exportedPlayer = Gio.DBusExportedObject.wrapJSObject(
         node.interfaces[1],
         state,
     );
+    const exportedTracks = Gio.DBusExportedObject.wrapJSObject(
+        node.interfaces[2],
+        {
+            get Tracks() {
+                return trackIds;
+            },
+            CanEditTracks: false,
+            GetTracksMetadata(ids) {
+                if (options.metadataError)
+                    throw new Error('Metadata unavailable');
+                return ids.map(trackMetadata);
+            },
+            GoTo(id) {
+                if (!state.CanControl || !trackIds.includes(id)) return;
+                changeTrack(Number(id.split('/').pop()) - index);
+            },
+        },
+    );
     root.export(connection, OBJECT_PATH);
     exportedPlayer.export(connection, OBJECT_PATH);
+    if (options.trackList !== false)
+        exportedTracks.export(connection, OBJECT_PATH);
     const owner = Gio.bus_own_name_on_connection(
         connection,
         name,
@@ -190,7 +242,18 @@ export function startMockPlayer(options = {}) {
         Gio.bus_unown_name(owner);
         root.unexport();
         exportedPlayer.unexport();
+        if (options.trackList !== false) exportedTracks.unexport();
         connection.close_sync(null);
+    };
+    stop.getRaiseCount = () => raiseCount;
+    stop.updateRoot = (properties) => {
+        for (const [key, value] of Object.entries(properties)) {
+            rootState[key] = value;
+            root.emit_property_changed(
+                key,
+                new GLib.Variant(typeof value === 'boolean' ? 'b' : 's', value),
+            );
+        }
     };
     stop.update = (properties) => {
         for (const [key, value] of Object.entries(properties)) {
@@ -226,6 +289,37 @@ export function startMockPlayer(options = {}) {
             'Metadata',
             new GLib.Variant('a{sv}', state.Metadata),
         );
+    };
+    stop.replaceTracks = (ids) => {
+        trackIds = ids;
+        exportedTracks.emit_signal(
+            'TrackListReplaced',
+            new GLib.Variant('(aoo)', [ids, `/mock/track/${index}`]),
+        );
+    };
+    stop.addTrack = (id, after) => {
+        trackIds.splice(trackIds.indexOf(after) + 1, 0, id);
+        exportedTracks.emit_signal(
+            'TrackAdded',
+            new GLib.Variant('(a{sv}o)', [trackMetadata(id), after]),
+        );
+    };
+    stop.removeTrack = (id) => {
+        trackIds = trackIds.filter((track) => track !== id);
+        exportedTracks.emit_signal(
+            'TrackRemoved',
+            new GLib.Variant('(o)', [id]),
+        );
+    };
+    stop.renameTrack = (id, title) => {
+        tracks[Number(id.split('/').pop())] = title;
+        exportedTracks.emit_signal(
+            'TrackMetadataChanged',
+            new GLib.Variant('(oa{sv})', [id, trackMetadata(id)]),
+        );
+    };
+    stop.setMetadataError = (enabled) => {
+        options.metadataError = enabled;
     };
     return stop;
 }
